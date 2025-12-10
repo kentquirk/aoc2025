@@ -8,15 +8,15 @@ import (
 	"strings"
 )
 
-func part1(lines []string) int {
+func part1(data []string) int {
 	return 0
 }
 
-func part2(lines []string) int {
+func part2(data []string) int {
 	return 0
 }
 
-func readlines(filename string) []string {
+func parse(filename string) []string {
 	f, err := os.Open(fmt.Sprintf("./data/%s.txt", filename))
 	if err != nil {
 		log.Fatal(err)
@@ -33,16 +33,14 @@ func main() {
 	filename := "sample"
 	if len(args) > 0 {
 		switch args[0] {
-		case "sample", "input":
-			filename = args[0]
 		case "-s":
 			filename = "sample"
 		case "-i":
 			filename = "input"
 		default:
-			log.Fatalf("Unknown filename: %s", args[0])
+			filename = args[0]
 		}
 	}
-	lines := readlines(filename)
-	fmt.Println(part1(lines))
+	data := parse(filename)
+	fmt.Println(part1(data))
 }
