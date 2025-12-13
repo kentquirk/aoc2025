@@ -11,6 +11,20 @@ import (
 type node struct {
 	name     string
 	children []*node
+	parents  []*node
+	hasFFT   int
+	hasDAC   int
+	all      int
+	visited  bool
+}
+
+func (n *node) allParentsVisited() bool {
+	for _, parent := range n.parents {
+		if !parent.visited {
+			return false
+		}
+	}
+	return true
 }
 
 func (n *node) String() string {
@@ -31,6 +45,42 @@ func (g graph) String() string {
 		s += fmt.Sprintf("%s\n", node)
 	}
 	return s
+}
+
+func (g graph) populateCounts() {
+	g.nodes["svr"].all = 1
+	for {
+		changed := false
+		for _, node := range g.nodes {
+			if node.visited {
+				continue
+			}
+			if node.allParentsVisited() {
+				// we can do this one
+				// fmt.Println(node.name)
+				node.visited = true
+				changed = true
+
+				for _, p := range node.parents {
+					node.hasFFT += p.hasFFT
+					node.hasDAC += p.hasDAC
+					node.all += p.all
+				}
+
+				// once we hit fft, we can start counting paths with it
+				if node.name == "fft" {
+					node.hasFFT = node.all
+				}
+				// we know dac is lower in the graph than fft so we can start those now
+				if node.name == "dac" {
+					node.hasDAC = node.hasFFT
+				}
+			}
+		}
+		if !changed {
+			break
+		}
+	}
 }
 
 type path []*node
@@ -66,7 +116,9 @@ func part1(data graph) int {
 }
 
 func part2(data graph) int {
-	return 0
+	data.populateCounts()
+	// fmt.Printf("%#v", data.nodes["out"])
+	return data.nodes["out"].hasDAC
 }
 
 func parse(filename string) graph {
@@ -90,7 +142,7 @@ func parse(filename string) graph {
 		node := &node{name: name}
 		g.nodes[name] = node
 	}
-	// second pass -- populate the children
+	// second pass -- populate the families
 	for _, line := range lines {
 		if line == "" {
 			continue
@@ -103,6 +155,7 @@ func parse(filename string) graph {
 				log.Fatalf("child node %s not found", childName)
 			}
 			node.children = append(node.children, child)
+			child.parents = append(child.parents, node)
 		}
 	}
 	return g
@@ -122,5 +175,6 @@ func main() {
 		}
 	}
 	data := parse(filename)
-	fmt.Println(part1(data))
+	// fmt.Println(part1(data))
+	fmt.Println(part2(data))
 }

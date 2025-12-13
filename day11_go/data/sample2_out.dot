@@ -1,0 +1,22 @@
+digraph G {
+svr -> aaa;
+svr -> bbb;
+aaa -> fft;
+fft -> ccc;
+tty -> ccc;
+ccc -> ddd;
+ccc -> eee;
+ddd -> hub;
+hub -> fff;
+bbb -> tty;
+eee -> dac;
+dac -> fff;
+fff -> ggg;
+fff -> hhh;
+ggg -> out; out [color=blue penwidth=2];
+hhh -> out; out [color=blue penwidth=2];
+svr [shape=star penwidth=2 color=red];
+fft [shape=star penwidth=2 color=red];
+dac [shape=star penwidth=2 color=red];
+out [shape=star penwidth=2 color=red];
+}

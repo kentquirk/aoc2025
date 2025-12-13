@@ -1,0 +1,22 @@
+	outf, err := os.Create(fmt.Sprintf("./data/%s_out.dot", filename))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer outf.Close()
+
+	fmt.Fprintln(outf, "digraph G {")
+	for name, node := range g.nodes {
+		for _, child := range node.children {
+			fmt.Fprintf(outf, "%s -> %s;", name, child.name)
+			if strings.Contains(lastgrp, child.name) {
+				fmt.Fprintf(outf, " %s [color=blue penwidth=2];", child.name)
+			}
+			fmt.Fprintln(outf)
+		}
+	}
+	fmt.Fprintln(outf, "svr [shape=star penwidth=2 color=red];")
+	fmt.Fprintln(outf, "fft [shape=star penwidth=2 color=red];")
+	fmt.Fprintln(outf, "dac [shape=star penwidth=2 color=red];")
+	fmt.Fprintln(outf, "out [shape=star penwidth=2 color=red];")
+	fmt.Fprintln(outf, "}")
+
