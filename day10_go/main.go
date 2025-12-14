@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand/v2"
 	"os"
 	"regexp"
 	"sort"
@@ -30,17 +31,25 @@ func (b bits) asBits(n int) string {
 	return result.String()
 }
 
+// we call them switches in part 1 and buttons in part 2
 type machine struct {
 	nbits    int
 	lamps    bits
-	switches []bits
+	buttons  [][]int // each button is a list of indices
+	switches []bits  // the bit patterns for each switch
 	joltages []int
 	state    bits
 	children []*machine
+	jstate   []int
+	presses  []int
 }
 
 func (m machine) String() string {
 	return fmt.Sprintf("lamps: %s, switches: %v, joltages: %v", m.lamps.asBits(m.nbits), m.switches, m.joltages)
+}
+
+func (m machine) JString() string {
+	return fmt.Sprintf("jstate: %v, presses: %v", m.jstate, m.presses)
 }
 
 func (m machine) print() {
@@ -104,6 +113,81 @@ func (m machine) search(depth int) int {
 	return -1
 }
 
+func (m *machine) pressButton() bool {
+	// calculate how far jstate is from joltages
+	deltas := make([]int, len(m.joltages))
+	for i, st := range m.jstate {
+		deltas[i] = m.joltages[i] - st
+	}
+	// find the best candidate button based on deltas
+	// value of a button is sum of deltas corresponding
+	// to the joltages that the button effects -- but if
+	// a button has 0 for a delta, skip it.
+	best := -1
+	bestValue := -1
+outer:
+	for i, b := range m.buttons {
+		value := 0
+		for _, ix := range b {
+			if deltas[ix] == 0 {
+				continue outer
+			}
+			value += deltas[ix]
+		}
+		if value > bestValue {
+			bestValue = value
+			best = i
+		}
+	}
+	if best == -1 {
+		return false
+	}
+
+	m.presses = append(m.presses, best)
+	for _, i := range m.buttons[best] {
+		m.jstate[i]++
+	}
+	return true
+}
+
+func (m *machine) unpressButton() {
+	ix := rand.IntN(len(m.presses))
+	button := m.presses[ix]
+	m.presses = append(m.presses[:ix], m.presses[ix+1:]...)
+	for _, i := range m.buttons[button] {
+		m.jstate[i]--
+	}
+}
+
+type joltstate int
+
+const (
+	TooHigh joltstate = 1
+	TooLow  joltstate = -1
+	Equal   joltstate = 0
+)
+
+func (m *machine) check() joltstate {
+	isEqual := true
+	for i := range m.joltages {
+		if m.jstate[i] > m.joltages[i] {
+			return TooHigh
+		}
+		if m.jstate[i] < m.joltages[i] {
+			isEqual = false
+		}
+	}
+	if isEqual {
+		return Equal
+	}
+	return TooLow
+}
+
+func (m *machine) reset() {
+	m.jstate = make([]int, len(m.joltages))
+	m.presses = nil
+}
+
 func parseLamps(s string) (int, bits) {
 	// string is . (0) and # (1), and low order bit is first
 	// so ".#.#" should be A and "#..###" should be 56
@@ -142,6 +226,12 @@ func parseSwitch(s string) bits {
 	return bits(result)
 }
 
+func parseButtons(s string) []int {
+	// takes a comma-separated list of positions and sets them to true in the result
+	values := parseNumberList(s)
+	return values
+}
+
 func parseJolts(s string) []int {
 	return parseNumberList(s)
 }
@@ -161,12 +251,14 @@ func parseMachine(line string) machine {
 	ms := switchPat.FindAllStringSubmatch(line, -1)
 	for _, sub := range ms {
 		machine.switches = append(machine.switches, parseSwitch(sub[1]))
+		machine.buttons = append(machine.buttons, parseButtons(sub[1]))
 	}
 
 	mj := joltsPat.FindStringSubmatch(line)
 	if mj != nil {
 		machine.joltages = parseJolts(mj[1])
 	}
+	machine.jstate = make([]int, len(machine.joltages))
 	return machine
 }
 
@@ -208,7 +300,37 @@ func part1(data []machine) int {
 }
 
 func part2(data []machine) int {
-	return 0
+	total := 0
+	for _, m := range data {
+		attempts := 0
+		best := 10000
+		score := 10000
+		for range 1 {
+			m.reset()
+			done := false
+			attempts++
+			for !done {
+				switch m.check() {
+				case TooHigh:
+					m.unpressButton()
+				case TooLow:
+					if !m.pressButton() {
+						m.unpressButton()
+					}
+				case Equal:
+					score = len(m.presses)
+					done = true
+				}
+			}
+			if score < best {
+				best = score
+				fmt.Printf("%s\n", m)
+				fmt.Printf("Solved with %d presses in %d attempts: %s\n", score, attempts, m.JString())
+			}
+		}
+		total += best
+	}
+	return total
 }
 
 func main() {
@@ -225,5 +347,6 @@ func main() {
 		}
 	}
 	data := parse(filename)
-	fmt.Println(part1(data))
+	// fmt.Println(part1(data))
+	fmt.Println(part2(data))
 }
